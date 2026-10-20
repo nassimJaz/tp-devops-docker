@@ -24,3 +24,22 @@ jobs:
      #finally build your app with the latest command
       - name: Build and test with Maven
         run: mvn -B verify sonar:sonar -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY}} -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }}  --file ./simple-api/pom.xml
+
+  # si les tests passent sur develop, on ouvre une PR vers main
+  create-pull-request:
+    needs: test-backend
+    if: ${{ github.ref == 'refs/heads/develop' }}
+
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Create pull request develop -> main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # on ne crée pas de PR si il y en a déjà une ouverte
+          if [ -z "$(gh pr list --repo ${{ github.repository }} --head develop --base main --state open --json number --jq '.[].number')" ]; then
+            gh pr create --repo ${{ github.repository }} --head develop --base main --title "Merge develop into main" --body "PR créée automatiquement après la validation des tests."
+          fi
