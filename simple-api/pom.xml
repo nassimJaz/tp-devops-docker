@@ -16,6 +16,7 @@
 	<properties>
 		<java.version>21</java.version>
 		<jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+		<sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
 		<testcontainers.version>1.21.4</testcontainers.version>
 		<validation.version>3.1.0</validation.version>
 	</properties>
@@ -103,14 +104,20 @@
 							<goal>prepare-agent</goal>
 						</goals>
 					</execution>
+					<!-- rapport après les tests d'intégration pour avoir la couverture unitaires + IT -->
 					<execution>
-						<id>post-unit-test</id>
-						<phase>test</phase>
+						<id>report</id>
+						<phase>verify</phase>
 						<goals>
 							<goal>report</goal>
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>${sonar-maven-plugin.version}</version>
 			</plugin>
 		</plugins>
 	</build>
