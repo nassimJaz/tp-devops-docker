@@ -172,14 +172,16 @@ Le mot de passe de la base n'est plus en clair dans le repo. Il est chiffré ave
 - `group_vars/all/main.yml` : `postgres_password: "{{ vault_postgres_password }}"`. Les rôles utilisent toujours `postgres_password`, ils n'ont pas changé.
 - Le mot de passe du vault n'est jamais dans le repo : en local dans `~/.ansible/vault_pass_tp` (droits 600), et dans le secret GitHub `ANSIBLE_VAULT_PASSWORD` pour la CI.
 
+`ansible/ansible.cfg` indique où trouver le mot de passe (`vault_password_file = ~/.ansible/vault_pass_tp`). Ansible lit ce fichier quand on lance une commande depuis `ansible/`, on n'a donc pas besoin de passer `--vault-password-file`. Sans lui, toute commande lancée depuis ce dossier (même un simple `ansible all -m ping`) échoue avec `Attempting to decrypt but no vault secrets found`, car Ansible charge `group_vars/all/vault.yml`.
+
 Commandes :
 
 ```bash
-ansible-vault view group_vars/all/vault.yml --vault-password-file ~/.ansible/vault_pass_tp
-ansible-vault edit group_vars/all/vault.yml --vault-password-file ~/.ansible/vault_pass_tp
-ansible-playbook -i inventories/setup.yml playbook.yml --vault-password-file ~/.ansible/vault_pass_tp
+ansible-vault view group_vars/all/vault.yml
+ansible-vault edit group_vars/all/vault.yml
+ansible-playbook -i inventories/setup.yml playbook.yml
 ```
 
-Dans `deploy.yml`, le secret est écrit dans le dossier temporaire du runner et passé avec `--vault-password-file`.
+Dans `deploy.yml`, le secret est écrit dans `~/.ansible/vault_pass_tp` sur le runner, au chemin attendu par `ansible.cfg`.
 
 Le mot de passe de la base a été changé au passage (l'ancien, `pwd`, était dans l'historique Git). Postgres ne lit `POSTGRES_PASSWORD` qu'à la création du volume : il a donc fallu supprimer une fois le conteneur `database` et le volume `db-volume` pour que le nouveau mot de passe soit pris en compte. Les données sont recréées par les scripts SQL de l'image.
