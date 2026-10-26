@@ -61,3 +61,42 @@ Commandes de base (ad hoc) :
 - `ansible all -i inventories/setup.yml -m apt -a "name=apache2 state=absent" --become` : supprime apache2. `--become` exécute la commande en root (nécessaire pour installer ou supprimer un paquet).
 
 On décrit l'état voulu (`state=absent`) et Ansible ne fait que ce qui est nécessaire : la première exécution renvoie `CHANGED`, la seconde `SUCCESS` car apache2 est déjà absent.
+
+**3-2 Documentez votre playbook**
+
+`playbook.yml` :
+
+```yaml
+- hosts: all
+  gather_facts: true
+  become: true
+
+  roles:
+    - docker
+```
+
+- `hosts: all` : le playbook s'applique à toutes les machines de l'inventaire.
+- `gather_facts: true` : Ansible récupère les facts avant de lancer les tâches. On en a besoin pour `ansible_facts['distribution_release']` (`bookworm`) dans l'URL du dépôt Docker.
+- `become: true` : toutes les tâches sont lancées en root (installation de paquets, gestion des services).
+- `roles` : au lieu d'écrire les tâches dans le playbook, on appelle le rôle `docker`. Un rôle regroupe des tâches réutilisables dans une arborescence standard (créée avec `ansible-galaxy init roles/docker`). On n'a gardé que `tasks/` et `handlers/`.
+
+Tâches du rôle `roles/docker/tasks/main.yml`, qui suivent la [doc d'installation de Docker sur Debian](https://docs.docker.com/engine/install/debian/#install-using-the-repository) :
+
+1. `apt` : installe les prérequis (`ca-certificates`, `curl`, `gnupg`, `python3-venv`...) et met à jour le cache apt.
+2. `apt_key` : ajoute la clé GPG de Docker, pour que apt fasse confiance aux paquets du dépôt.
+3. `apt_repository` : ajoute le dépôt officiel de Docker pour la version de Debian du serveur.
+4. `apt` : installe `docker-ce`. Si le paquet est installé ou mis à jour, la tâche notifie le handler `Restart docker`.
+5. `apt` : installe `python3` et `python3-pip`.
+6. `pip` : installe le SDK Docker pour Python dans un virtualenv `/opt/docker_venv`. Les modules Ansible `community.docker` en ont besoin. On passe par le module `pip` plutôt qu'un `command: pip install`, pour que la tâche ne soit relancée que si le paquet manque.
+7. `service` : s'assure que le service Docker est démarré.
+
+Le handler `roles/docker/handlers/main.yml` redémarre Docker. Un handler n'est lancé qu'une fois en fin de play, et seulement si une tâche l'a notifié.
+
+Lancement :
+
+```bash
+ansible-playbook -i inventories/setup.yml playbook.yml --syntax-check
+ansible-playbook -i inventories/setup.yml playbook.yml
+```
+
+Le premier lancement renvoie `changed=6`, le second `changed=0` : tout est déjà dans l'état demandé.
