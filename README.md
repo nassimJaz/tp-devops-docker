@@ -133,3 +133,22 @@ Résultat :
 $ curl http://nassim.jazouli.takima.school/departments/IRC/students
 [{"id":1,"firstname":"Eli","lastname":"Copter","department":{"id":1,"name":"IRC"}}]
 ```
+
+### Déploiement continu
+
+Nouveau workflow `deploy.yml`, lancé quand `Build and push docker images` s'est terminé avec succès sur `main`. Il installe Ansible et la collection `community.docker`, écrit la clé SSH du serveur (secret `SSH_PRIVATE_KEY`) au chemin attendu par l'inventaire, ajoute le serveur aux `known_hosts`, puis lance le playbook. Grâce à `pull: true`, les conteneurs sont recréés avec les nouvelles images.
+
+Chaîne complète : push sur `develop` → `Test backend` → PR auto vers `main` → merge → `Test backend` sur `main` → `Build and push docker images` → `Deploy`.
+
+**Est-il vraiment sûr de déployer automatiquement chaque nouvelle image du hub ? Comment le sécuriser ?**
+
+Non. Tout ce qui est poussé sous le tag `latest` part en production, sans contrôle humain : une image cassée qui passe les tests, ou une image modifiée par quelqu'un qui aurait récupéré le token Docker Hub, serait déployée directement. Et comme `latest` est écrasé à chaque fois, on ne sait plus exactement quelle version tourne et le retour arrière est compliqué.
+
+Pour le sécuriser :
+
+- déployer un tag précis (le SHA du commit, déjà poussé par le workflow de build) plutôt que `latest`, ce qui permet de savoir ce qui tourne et de revenir à la version précédente ;
+- ne déployer qu'après les tests (c'est le cas ici : déploiement seulement si le build, lancé lui-même après les tests, a réussi) ;
+- ajouter une validation manuelle avec un *environment* GitHub protégé (`environment: production` avec des reviewers obligatoires) ;
+- scanner les images (Trivy, Docker Scout) et les signer (Docker Content Trust, cosign) pour n'accepter que des images vérifiées ;
+- limiter les droits : token Docker Hub en lecture seule sur le serveur, secrets chiffrés (vault Ansible), clé SSH dédiée au déploiement ;
+- vérifier après déploiement que l'application répond (healthcheck) et revenir en arrière sinon.
