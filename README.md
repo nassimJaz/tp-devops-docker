@@ -152,3 +152,14 @@ Pour le sécuriser :
 - scanner les images (Trivy, Docker Scout) et les signer (Docker Content Trust, cosign) pour n'accepter que des images vérifiées ;
 - limiter les droits : token Docker Hub en lecture seule sur le serveur, secrets chiffrés (vault Ansible), clé SSH dédiée au déploiement ;
 - vérifier après déploiement que l'application répond (healthcheck) et revenir en arrière sinon.
+
+### Front
+
+Le code du [front fourni](https://github.com/takima-training/devops-front) (Vue.js, servi par nginx) est copié dans `front/`.
+
+- `front/.env.production` : `VUE_APP_API_URL=nassim.jazouli.takima.school/api`. Le front appelle l'API depuis le navigateur, il lui faut donc l'adresse publique du serveur et pas le nom du conteneur.
+- `http-server/my-httpd.conf` : httpd devient le point d'entrée unique. `/api/...` est envoyé à l'API (`simple-api:8080`, en retirant le préfixe `/api`), tout le reste au front (`front:80`). La règle `/api/` est écrite avant `/` car httpd applique la première qui correspond.
+- `build-and-push-docker-image.yml` : construit et pousse aussi l'image `tp-devops-front`.
+- Nouveau rôle Ansible `front` : conteneur `front` sur le réseau `app-network`, sans port exposé (on y accède par le proxy). Il est lancé avant `proxy`.
+
+Résultat : le site est sur http://nassim.jazouli.takima.school et l'API sur http://nassim.jazouli.takima.school/api/departments.
