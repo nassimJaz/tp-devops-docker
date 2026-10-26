@@ -28,3 +28,36 @@ Sans `needs`, les jobs tournent en parallèle, donc on pourrait publier une imag
 **2-4 Pourquoi pousser les images Docker ?**
 
 Pour les stocker sur un registry (Docker Hub) et pouvoir les récupérer depuis n'importe quelle machine, par exemple pour déployer l'application, sans avoir à les reconstruire.
+
+## TP 3 - Ansible
+
+Tout se trouve dans le dossier `ansible/`. Les commandes ci-dessous sont lancées depuis ce dossier.
+
+Le serveur est `nassim.jazouli.takima.school` (Debian 12), on s'y connecte avec l'utilisateur `admin` et la clé privée fournie (`~/.ssh/id_rsa_takima`).
+
+### Questions
+
+**3-1 Documentez votre inventaire et les commandes de base**
+
+Inventaire `inventories/setup.yml` :
+
+```yaml
+all:
+  vars:
+    ansible_user: admin
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa_takima
+  children:
+    prod:
+      hosts: nassim.jazouli.takima.school
+```
+
+- `all` est le groupe qui contient tous les hôtes, les `vars` définies ici s'appliquent donc à toutes les machines : l'utilisateur SSH et la clé privée.
+- `children` permet de créer des sous-groupes. Ici un groupe `prod` qui contient notre unique serveur.
+
+Commandes de base (ad hoc) :
+
+- `ansible all -i inventories/setup.yml -m ping` : teste la connexion. Ansible répond `pong` si la machine est joignable, que l'utilisateur existe et que l'authentification SSH fonctionne.
+- `ansible all -i inventories/setup.yml -m setup -a "filter=ansible_distribution*"` : récupère les *facts*, c'est-à-dire les informations découvertes sur la machine (ici Debian 12.7, `bookworm`).
+- `ansible all -i inventories/setup.yml -m apt -a "name=apache2 state=absent" --become` : supprime apache2. `--become` exécute la commande en root (nécessaire pour installer ou supprimer un paquet).
+
+On décrit l'état voulu (`state=absent`) et Ansible ne fait que ce qui est nécessaire : la première exécution renvoie `CHANGED`, la seconde `SUCCESS` car apache2 est déjà absent.
