@@ -1,0 +1,13 @@
+---
+# le nom du conteneur doit être simple-api, c'est l'hôte utilisé par le proxy httpd
+- name: Run app
+  community.docker.docker_container:
+    name: simple-api
+    image: "{{ dockerhub_user }}/tp-devops-simple-api:latest"
+    pull: true
+    restart_policy: unless-stopped
+    env:
+      DATABASE_HOST: database
+      DATABASE_PASSWORD: "{{ postgres_password }}"
+    networks:
+      - name: "{{ docker_network }}"

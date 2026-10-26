@@ -100,3 +100,36 @@ ansible-playbook -i inventories/setup.yml playbook.yml
 ```
 
 Le premier lancement renvoie `changed=6`, le second `changed=0` : tout est déjà dans l'état demandé.
+
+**3-3 Documentez la configuration de vos tâches docker_container**
+
+Le playbook contient maintenant deux plays :
+
+1. Le rôle `docker`, qui installe Docker (avec l'interpréteur Python système, nécessaire au module `apt`).
+2. Les rôles de déploiement `network`, `database`, `app` et `proxy`, avec `ansible_python_interpreter: /opt/docker_venv/bin/python`. Les modules `community.docker` ont besoin du SDK Docker pour Python, qui est installé dans ce venv par le rôle `docker`.
+
+Variables communes dans `group_vars/all.yml` : `dockerhub_user`, le nom du réseau (`docker_network`) et le mot de passe de la base (`postgres_password`).
+
+| Rôle | Module | Configuration |
+|---|---|---|
+| `network` | `docker_network` | Crée le réseau `app-network`, qui permet aux conteneurs de se joindre par leur nom. |
+| `database` | `docker_container` | Conteneur `database`, image `nassimjaz/tp-devops-database:latest`, variable `POSTGRES_PASSWORD`, volume `db-volume` monté sur `/var/lib/postgresql/data` pour garder les données si le conteneur est recréé. |
+| `app` | `docker_container` | Conteneur `simple-api`, image `nassimjaz/tp-devops-simple-api:latest`, variables `DATABASE_HOST=database` (nom du conteneur de la base) et `DATABASE_PASSWORD`, lues par l'`application.yml`. Il doit s'appeler `simple-api`, car c'est l'hôte utilisé dans la conf du proxy. |
+| `proxy` | `docker_container` | Conteneur `httpd`, image `nassimjaz/tp-devops-httpd:latest`, port `80:80`. C'est le seul conteneur exposé sur le serveur : la base et l'API ne sont joignables que via le réseau Docker. |
+
+Options communes aux trois conteneurs :
+
+- `networks: [{name: app-network}]` : branche le conteneur sur le réseau de l'application.
+- `pull: true` : télécharge toujours la dernière version de l'image. Si elle a changé, le conteneur est recréé avec la nouvelle (indispensable pour le déploiement continu).
+- `restart_policy: unless-stopped` : le conteneur redémarre s'il plante ou si le serveur redémarre. Ça règle aussi le cas où l'API démarre avant que la base soit prête.
+
+`community.docker` doit être en version 3.10 minimum (`requirements.yml`, installé avec `ansible-galaxy collection install -r requirements.yml`). La 3.7 livrée avec le paquet `ansible` d'Ubuntu plante avec `Not supported URL scheme http+docker` à cause de `requests` 2.32.
+
+À cause de `pull: true`, les trois tâches `docker_container` sont toujours marquées `changed`, même si l'image n'a pas changé (le module considère qu'un pull a eu lieu). Les conteneurs ne sont pas recréés pour autant.
+
+Résultat :
+
+```bash
+$ curl http://nassim.jazouli.takima.school/departments/IRC/students
+[{"id":1,"firstname":"Eli","lastname":"Copter","department":{"id":1,"name":"IRC"}}]
+```

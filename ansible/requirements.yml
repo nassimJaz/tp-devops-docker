@@ -1,0 +1,4 @@
+collections:
+  # la 3.7 livrée avec ansible (apt) n'est pas compatible avec requests >= 2.32
+  - name: community.docker
+    version: ">=3.10.2,<4.0.0"
