@@ -1,0 +1,4 @@
+dockerhub_user: nassimjaz
+docker_network: app-network
+# valeur chiffrée dans vault.yml (ansible-vault)
+postgres_password: "{{ vault_postgres_password }}"
