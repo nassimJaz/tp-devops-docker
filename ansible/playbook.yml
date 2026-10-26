@@ -1,0 +1,19 @@
+- hosts: all
+  gather_facts: true
+  become: true
+
+  roles:
+    - docker
+
+# les modules community.docker utilisent le SDK Docker installé dans le venv par le rôle docker
+- hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    ansible_python_interpreter: /opt/docker_venv/bin/python
+
+  roles:
+    - network
+    - database
+    - app
+    - proxy

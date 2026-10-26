@@ -1,0 +1,36 @@
+name: Deploy
+on:
+  # se lance quand les images ont été construites et poussées sur Docker Hub, sur main uniquement
+  workflow_run:
+    workflows: ["Build and push docker images"]
+    types: [completed]
+    branches: ["main"]
+
+jobs:
+  deploy:
+    # seulement si les images ont bien été poussées
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Install Ansible
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      # même chemin de clé que dans l'inventaire
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa_takima
+          chmod 400 ~/.ssh/id_rsa_takima
+          ssh-keyscan -H nassim.jazouli.takima.school >> ~/.ssh/known_hosts
+
+      - name: Deploy with Ansible
+        working-directory: ./ansible
+        run: ansible-playbook -i inventories/setup.yml playbook.yml
