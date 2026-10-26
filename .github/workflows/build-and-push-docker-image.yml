@@ -47,3 +47,12 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-httpd:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-httpd:${{ github.event.workflow_run.head_sha }}
           push: true
+
+      - name: Build image and push front
+        uses: docker/build-push-action@v6
+        with:
+          context: ./front
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-front:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-front:${{ github.event.workflow_run.head_sha }}
+          push: true
