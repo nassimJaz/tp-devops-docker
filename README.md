@@ -163,3 +163,23 @@ Le code du [front fourni](https://github.com/takima-training/devops-front) (Vue.
 - Nouveau rôle Ansible `front` : conteneur `front` sur le réseau `app-network`, sans port exposé (on y accède par le proxy). Il est lancé avant `proxy`.
 
 Résultat : le site est sur http://nassim.jazouli.takima.school et l'API sur http://nassim.jazouli.takima.school/api/departments.
+
+### Going further : vault
+
+Le mot de passe de la base n'est plus en clair dans le repo. Il est chiffré avec `ansible-vault` :
+
+- `group_vars/all/vault.yml` : contient `vault_postgres_password`, chiffré en AES256 (`ansible-vault encrypt`). Il est commité, mais illisible sans le mot de passe du vault.
+- `group_vars/all/main.yml` : `postgres_password: "{{ vault_postgres_password }}"`. Les rôles utilisent toujours `postgres_password`, ils n'ont pas changé.
+- Le mot de passe du vault n'est jamais dans le repo : en local dans `~/.ansible/vault_pass_tp` (droits 600), et dans le secret GitHub `ANSIBLE_VAULT_PASSWORD` pour la CI.
+
+Commandes :
+
+```bash
+ansible-vault view group_vars/all/vault.yml --vault-password-file ~/.ansible/vault_pass_tp
+ansible-vault edit group_vars/all/vault.yml --vault-password-file ~/.ansible/vault_pass_tp
+ansible-playbook -i inventories/setup.yml playbook.yml --vault-password-file ~/.ansible/vault_pass_tp
+```
+
+Dans `deploy.yml`, le secret est écrit dans le dossier temporaire du runner et passé avec `--vault-password-file`.
+
+Le mot de passe de la base a été changé au passage (l'ancien, `pwd`, était dans l'historique Git). Postgres ne lit `POSTGRES_PASSWORD` qu'à la création du volume : il a donc fallu supprimer une fois le conteneur `database` et le volume `db-volume` pour que le nouveau mot de passe soit pris en compte. Les données sont recréées par les scripts SQL de l'image.

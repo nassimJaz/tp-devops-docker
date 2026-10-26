@@ -31,6 +31,9 @@ jobs:
           chmod 400 ~/.ssh/id_rsa_takima
           ssh-keyscan -H nassim.jazouli.takima.school >> ~/.ssh/known_hosts
 
+      # le mot de passe du vault déchiffre group_vars/all/vault.yml
       - name: Deploy with Ansible
         working-directory: ./ansible
-        run: ansible-playbook -i inventories/setup.yml playbook.yml
+        run: |
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > "$RUNNER_TEMP/vault_pass"
+          ansible-playbook -i inventories/setup.yml playbook.yml --vault-password-file "$RUNNER_TEMP/vault_pass"

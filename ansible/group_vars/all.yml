@@ -1,3 +1,0 @@
-dockerhub_user: nassimjaz
-docker_network: app-network
-postgres_password: pwd
